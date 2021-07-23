@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.30114.105
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{421A1E0C-F35A-4AF3-A45E-3D69667829A2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Identity.API", "src\Identity.API\Identity.API.csproj", "{A3961D4D-78AB-4319-8E55-AE51FD16E306}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Identity.API", "src\Identity\Identity.API\Identity.API.csproj", "{A3961D4D-78AB-4319-8E55-AE51FD16E306}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examination", "Examination", "{650C4C3A-A62A-4AD1-AAB9-085A2CBEF48D}"
 EndProject
