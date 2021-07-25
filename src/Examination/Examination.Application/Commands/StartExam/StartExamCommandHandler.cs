@@ -21,10 +21,9 @@ namespace Examination.Application.DomainEventHandler
             var examResult = await _examResultRepository.GetDetails(request.UserId, request.ExamId);
 
             _examResultRepository.StartTransaction();
-            
+
             try
             {
-
                 if (examResult != null)
                 {
                     examResult.ExamStartDate = DateTime.Now;
