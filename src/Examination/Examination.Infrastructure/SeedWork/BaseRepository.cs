@@ -1,40 +1,80 @@
 using System;
+using System.Linq;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Examination.Domain.SeedWork;
+using MediatR;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 
 namespace Examination.Infrastructure.SeedWork
 {
     public class BaseRepository<T> : IRepositoryBase<T> where T : Entity, IAggregateRoot
     {
-        public Task AbortTransactionAsync(CancellationToken cancellationToken = default)
+        private readonly IMongoClient _mongoClient;
+        private readonly IClientSessionHandle _clientSessionHandle;
+        private readonly string _collection;
+        private readonly ExamSettings _settings;
+        private readonly IMediator _mediator;
+
+        public BaseRepository(IMongoClient mongoClient,
+         IClientSessionHandle clientSessionHandle,
+         IOptions<ExamSettings> settings,
+         IMediator mediator,
+         string collection)
         {
-            throw new NotImplementedException();
+            _settings = settings.Value;
+            (_mongoClient, _clientSessionHandle, _collection) = (mongoClient, clientSessionHandle, collection);
+
+            if (!_mongoClient.GetDatabase(_settings.DatabaseSettings.DatabaseName).ListCollectionNames().ToList().Contains(collection))
+                _mongoClient.GetDatabase(_settings.DatabaseSettings.DatabaseName).CreateCollection(collection);
+
+            _mediator = mediator;
         }
 
-        public Task CommitTransactionAsync(T entity, CancellationToken cancellationToken = default)
+        protected virtual IMongoCollection<T> Collection =>
+                   _mongoClient.GetDatabase(_settings.DatabaseSettings.DatabaseName).GetCollection<T>(_collection);
+
+        public async Task AbortTransactionAsync(CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            await _clientSessionHandle.AbortTransactionAsync(cancellationToken);
         }
 
-        public Task DeleteAsync(string id)
+        public async Task CommitTransactionAsync(T entity, CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            await _clientSessionHandle.CommitTransactionAsync(cancellationToken);
+
+            var domainEvents = entity.DomainEvents.ToList();
+
+            entity.ClearDomainEvents();
+
+            foreach (var domainEvent in domainEvents)
+                await _mediator.Publish(domainEvent);
         }
 
-        public Task InsertAsync(T obj)
+        public async Task DeleteAsync(string id)
         {
-            throw new NotImplementedException();
+            await Collection.DeleteOneAsync(_clientSessionHandle, f => f.Id == id);
+        }
+
+        public async Task InsertAsync(T obj)
+        {
+            await Collection.InsertOneAsync(_clientSessionHandle, obj);
         }
 
         public void StartTransaction()
         {
-            throw new NotImplementedException();
+            _clientSessionHandle.StartTransaction();
         }
 
-        public Task UpdateAsync(T obj)
+        public async Task UpdateAsync(T obj)
         {
-            throw new NotImplementedException();
+            Expression<Func<T, string>> func = f => f.Id;
+            var value = (string)obj.GetType().GetProperty(func.Body.ToString().Split(".")[1])?.GetValue(obj, null);
+            var filter = Builders<T>.Filter.Eq(func, value);
+
+            await Collection.ReplaceOneAsync(_clientSessionHandle, filter, obj);
         }
     }
 }
